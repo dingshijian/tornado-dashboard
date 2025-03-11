@@ -5,8 +5,15 @@ import dash
 from dash import dcc, html, Input, Output
 import plotly.express as px
 
-# 🔹 Use the **correct OneDrive direct download link**
-onedrive_url = "https://onedrive.live.com/download?cid=YOUR_CID&resid=YOUR_RESID&authkey=YOUR_AUTHKEY"
+import os
+import pandas as pd
+import requests
+import dash
+from dash import dcc, html, Input, Output
+import plotly.express as px
+
+# 🔹 Replace with your actual OneDrive direct download link
+onedrive_url = "https://api.onedrive.com/v1.0/shares/u!Ak-wkUq8gHtXiq8w0OFI-uBrXa9umQ/root/content"
 
 # 🔹 Define the local file path
 csv_path = os.path.join(os.path.dirname(__file__), 'us-weather-events-1980-2024.csv')
@@ -14,19 +21,24 @@ csv_path = os.path.join(os.path.dirname(__file__), 'us-weather-events-1980-2024.
 # 🔹 Download the file if it does not exist
 if not os.path.exists(csv_path):
     print("Downloading CSV file from OneDrive...")
-    response = requests.get(onedrive_url, stream=True)
     
-    # If request fails, print error and exit
-    if response.status_code != 200:
-        print(f"Failed to download CSV. Status code: {response.status_code}")
+    try:
+        response = requests.get(onedrive_url, stream=True)
+        
+        if response.status_code == 200:
+            with open(csv_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=1024):
+                    file.write(chunk)
+            print("Download complete.")
+        else:
+            print(f"❌ Failed to download CSV. Status code: {response.status_code}")
+            exit(1)
+
+    except requests.RequestException as e:
+        print(f"❌ Error downloading file: {e}")
         exit(1)
 
-    with open(csv_path, 'wb') as file:
-        for chunk in response.iter_content(chunk_size=1024):
-            file.write(chunk)
-    print("Download complete.")
-
-# ✅ Fix: Use `csv_path` instead of `data_path`
+# ✅ Read the CSV
 df_raw = pd.read_csv(csv_path, low_memory=False)
 
 # 🔹 Filter for tornado events.
