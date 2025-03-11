@@ -23,7 +23,7 @@ if not os.path.exists(csv_path):
         
         # Check for Google Drive warning page
         if "text/html" in response.headers.get("Content-Type", ""):
-            print("❌ Detected Google Drive virus scan warning. Use the correct URL with &confirm=t")
+            print("❌ Detected Google Drive virus scan warning. Verify the URL and file permissions.")
             exit(1)
         
         if response.status_code == 200:
@@ -31,9 +31,23 @@ if not os.path.exists(csv_path):
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
             print("✅ Download complete.")
+            
+            # Verify CSV integrity
+            try:
+                pd.read_csv(csv_path, nrows=0)
+            except:
+                print("❌ Invalid CSV format. Deleting corrupted file.")
+                os.remove(csv_path)
+                exit(1)
         else:
             print(f"❌ Failed to download CSV. Status code: {response.status_code}")
             exit(1)
+
+    except requests.RequestException as e:
+        print(f"❌ Error downloading file: {e}")
+        if os.path.exists(csv_path):
+            os.remove(csv_path)  # Remove partial download
+        exit(1)
 
     except requests.RequestException as e:
         print(f"❌ Error downloading file: {e}")
