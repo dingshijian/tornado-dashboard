@@ -19,17 +19,15 @@ if not os.path.exists(csv_path):
     print("📥 Downloading CSV file from Google Drive...")
     try:
         response = requests.get(csv_url, stream=True, timeout=30)
-        # Check if response is HTML (indicating a virus scan warning page)
+        # Check if the response is HTML (indicating a virus scan warning page)
         if "text/html" in response.headers.get("Content-Type", ""):
             print("❌ Detected Google Drive virus scan warning. Verify the URL and file permissions.")
             exit(1)
-        
         if response.status_code == 200:
             with open(csv_path, 'wb') as file:
                 for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
             print("✅ Download complete.")
-            
             # Verify CSV integrity by attempting to read just the header
             try:
                 pd.read_csv(csv_path, nrows=0)
@@ -43,18 +41,16 @@ if not os.path.exists(csv_path):
     except requests.RequestException as e:
         print(f"❌ Error downloading file: {e}")
         if os.path.exists(csv_path):
-            os.remove(csv_path)  # Remove partial download
+            os.remove(csv_path)
         exit(1)
 
 # ✅ Process the CSV using chunked reading to reduce memory usage
 print("📌 Processing CSV file in chunks...")
-
 try:
-    # Only load necessary columns to reduce memory usage.
-    # Adjust these columns based on your CSV structure.
+    # Only load necessary columns to reduce memory usage
     use_columns = ["EVENT_TYPE", "BEGIN_DATE_TIME", "STATE"]
     chunks = []
-    chunk_size = 100000  # Adjust chunk size if needed
+    chunk_size = 100000  # Adjust chunk size as needed
 
     for chunk in pd.read_csv(csv_path, encoding="utf-8", low_memory=False, usecols=use_columns, chunksize=chunk_size):
         # Standardize column names
@@ -62,7 +58,7 @@ try:
         # Filter for tornado events
         tornado_chunk = chunk[chunk["EVENT_TYPE"].str.contains("Tornado", case=False, na=False)].copy()
         chunks.append(tornado_chunk)
-    
+
     df_tornado = pd.concat(chunks, ignore_index=True)
 
     # Convert the "BEGIN_DATE_TIME" column to datetime.
@@ -74,12 +70,10 @@ try:
     # Group by state and year to count tornadoes.
     df_grouped = df_tornado.groupby(["STATE", "year"]).size().reset_index(name="tornado_count")
 
-    # Debugging output
     print("📌 Columns Found in CSV:")
     print(df_tornado.columns.tolist())
     print("📌 First 5 Rows:")
     print(df_tornado.head())
-
 except Exception as e:
     print(f"❌ Error processing CSV: {e}")
     exit(1)
@@ -123,10 +117,11 @@ available_years = sorted(df_grouped["year"].unique())
 app = dash.Dash(__name__)
 app.title = "US Tornado Dashboard"
 
+# Expose the Flask server for Gunicorn
+server = app.server
+
 app.layout = html.Div([
     html.H1("US Tornado Dashboard", style={"textAlign": "center"}),
-    
-    # Year selection dropdown
     html.Div([
         html.Label("Select Year:"),
         dcc.Dropdown(
@@ -137,13 +132,8 @@ app.layout = html.Div([
             style={"width": "150px", "margin": "0 auto"}
         )
     ], style={"textAlign": "center", "padding": "10px"}),
-    
-    # Choropleth Map
     dcc.Graph(id="choropleth-map"),
-    
     html.Hr(),
-    
-    # Line chart for tornado trends
     html.Div([
         html.H2(id="line-chart-title", style={"textAlign": "center"}),
         dcc.Graph(id="line-chart")
@@ -160,9 +150,7 @@ app.layout = html.Div([
 def update_choropleth(selected_year):
     if selected_year is None:
         return {}
-    
     dff = df_grouped[df_grouped["year"] == selected_year]
-    
     fig = px.choropleth(
         dff,
         locations="state_abbrev",
@@ -184,22 +172,17 @@ def update_choropleth(selected_year):
 def update_line_chart(clickData):
     if clickData is None:
         return {}, "Click a state to see its tornado trend."
-    
     state_abbrev_clicked = clickData["points"][0]["location"]
     state_full = abbrev_state.get(state_abbrev_clicked, state_abbrev_clicked)
-    
     dff = df_grouped[df_grouped["state_abbrev"] == state_abbrev_clicked]
-    
     if dff.empty:
         return {}, f"No tornado data found for {state_full}."
-    
     fig = px.line(dff, x="year", y="tornado_count", markers=True)
     title = f"Tornado Counts in {state_full} Over the Years"
-    
     return fig, title
 
 # -----------------------------
-# Run the App
+# Run the App (for local development)
 # -----------------------------
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8050))
