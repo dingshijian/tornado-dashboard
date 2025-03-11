@@ -6,7 +6,24 @@ import pandas as pd
 # -----------------------------
 # Load and Prepare Data
 # -----------------------------
-data_path = '/Users/dings/Downloads/us-weather-events-1980-2024.csv'
+import os
+import pandas as pd
+import requests
+
+# OneDrive Direct Download Link (Replace with your actual converted link)
+onedrive_url = "https://api.onedrive.com/v1.0/shares/u!{s!Ak-wkUq8gHtXiq8w0OFI-uBrXa9umQ?e=JPo3V1}/root/content"
+
+# Define the local file path
+csv_path = os.path.join(os.path.dirname(__file__), 'us-weather-events-1980-2024.csv')
+
+# Download the file if it does not exist
+if not os.path.exists(csv_path):
+    print("Downloading CSV file from OneDrive...")
+    response = requests.get(onedrive_url, stream=True)
+    with open(csv_path, 'wb') as file:
+        for chunk in response.iter_content(chunk_size=1024):
+            file.write(chunk)
+    print("Download complete.")
 
 # Read the CSV with low_memory=False to avoid DtypeWarning
 df_raw = pd.read_csv(data_path, low_memory=False)
