@@ -1,5 +1,7 @@
 dash
 Flask
+Pandas
+Requests
 geopandas
 pandas
 plotly
