@@ -5,24 +5,27 @@ import dash
 from dash import dcc, html, Input, Output
 import plotly.express as px
 
-# 🔹 Replace with your actual OneDrive direct download link
-onedrive_url = "https://api.onedrive.com/v1.0/shares/u!Ak-wkUq8gHtXiq9d8SJgVqbkvSoCMQ/root/content"
+# 🔹 Google Drive File ID (Extract from your link)
+file_id = "1WDsm4qBNcGg8MOskRcLvSRGRU41Ef6rX"
+
+# 🔹 Construct direct Google Drive download URL
+csv_url = f"https://drive.google.com/uc?export=download&id={file_id}"
 
 # 🔹 Define the local file path
 csv_path = os.path.join(os.path.dirname(__file__), 'us-weather-events-1980-2024.csv')
 
 # 🔹 Download the file if it does not exist
 if not os.path.exists(csv_path):
-    print("Downloading CSV file from OneDrive...")
+    print("Downloading CSV file from Google Drive...")
     
     try:
-        response = requests.get(onedrive_url, stream=True)
+        response = requests.get(csv_url, stream=True)
         
         if response.status_code == 200:
             with open(csv_path, 'wb') as file:
                 for chunk in response.iter_content(chunk_size=1024):
                     file.write(chunk)
-            print("Download complete.")
+            print("✅ Download complete.")
         else:
             print(f"❌ Failed to download CSV. Status code: {response.status_code}")
             exit(1)
@@ -167,5 +170,5 @@ def update_line_chart(clickData):
 # Run the App
 # -----------------------------
 if __name__ == '__main__':
-   port = int(os.environ.get("PORT", 8050))  # Default to 8050 for local testing
-   app.run_server(debug=True, host='0.0.0.0', port=port)
+    port = int(os.environ.get("PORT", 8050))  # Use PORT environment variable for Render
+    app.run_server(debug=True, host='0.0.0.0', port=port)
