@@ -5,13 +5,6 @@ import dash
 from dash import dcc, html, Input, Output
 import plotly.express as px
 
-import os
-import pandas as pd
-import requests
-import dash
-from dash import dcc, html, Input, Output
-import plotly.express as px
-
 # 🔹 Replace with your actual OneDrive direct download link
 onedrive_url = "https://api.onedrive.com/v1.0/shares/u!Ak-wkUq8gHtXiq9d8SJgVqbkvSoCMQ/root/content"
 
@@ -174,4 +167,5 @@ def update_line_chart(clickData):
 # Run the App
 # -----------------------------
 if __name__ == '__main__':
-    app.run_server(debug=True)
+   port = int(os.environ.get("PORT", 8050))  # Default to 8050 for local testing
+   app.run_server(debug=True, host='0.0.0.0', port=port)
