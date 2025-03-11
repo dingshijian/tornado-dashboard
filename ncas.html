@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Tornado Counts</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <h1 style="text-align: center;">US Tornado Counts by State</h1>
+
+    <label for="year-select">Select Year:</label>
+    <select id="year-select" onchange="updateChart()"></select>
+
+    <canvas id="tornadoChart"></canvas>
+
+    <script>
+        let tornadoData = [];
+
+        // Load Tornado Data from Dash API
+        async function loadTornadoData() {
+            try {
+                const response = await fetch("/tornado-data");
+                tornadoData = await response.json();
+
+                // Extract unique years
+                let years = [...new Set(tornadoData.map(d => d.year))].sort();
+                let yearSelect = document.getElementById("year-select");
+
+                // Populate the year dropdown
+                years.forEach(year => {
+                    let option = document.createElement("option");
+                    option.value = year;
+                    option.textContent = year;
+                    yearSelect.appendChild(option);
+                });
+
+                // Initialize Chart with first year
+                updateChart();
+            } catch (error) {
+                console.error("Error loading tornado data:", error);
+            }
+        }
+
+        function updateChart() {
+            let selectedYear = document.getElementById("year-select").value;
+
+            // Filter data for selected year
+            let filteredData = tornadoData.filter(d => d.year == selectedYear);
+
+            // Extract state abbreviations and tornado counts
+            let states = filteredData.map(d => d.state_abbrev);
+            let tornadoCounts = filteredData.map(d => d.tornado_count);
+
+            // Create Chart
+            let ctx = document.getElementById("tornadoChart").getContext("2d");
+            if (window.tornadoChart) {
+                window.tornadoChart.destroy();  // Destroy previous chart instance
+            }
+            window.tornadoChart = new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: states,
+                    datasets: [{
+                        label: `Tornado Counts in ${selectedYear}`,
+                        data: tornadoCounts,
+                        backgroundColor: "rgba(255, 99, 132, 0.5)",
+                        borderColor: "rgba(255, 99, 132, 1)",
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        // Load data when the page loads
+        loadTornadoData();
+    </script>
+
+</body>
+</html>
