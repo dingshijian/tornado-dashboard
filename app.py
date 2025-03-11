@@ -8,8 +8,8 @@ import plotly.express as px
 # 🔹 Google Drive File ID (Extracted from your link)
 file_id = "1WDsm4qBNcGg8MOskRcLvSRGRU41Ef6rX"
 
-# 🔹 Construct direct Google Drive download URL
-csv_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+# 🔹 Construct direct Google Drive download URL with confirmation
+csv_url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download&confirm=t"
 
 # 🔹 Define the local file path
 csv_path = os.path.join(os.path.dirname(__file__), 'us-weather-events-1980-2024.csv')
@@ -19,11 +19,16 @@ if not os.path.exists(csv_path):
     print("📥 Downloading CSV file from Google Drive...")
     
     try:
-        response = requests.get(csv_url, stream=True)
+        response = requests.get(csv_url, stream=True, timeout=30)
+        
+        # Check for Google Drive warning page
+        if "text/html" in response.headers.get("Content-Type", ""):
+            print("❌ Detected Google Drive virus scan warning. Use the correct URL with &confirm=t")
+            exit(1)
         
         if response.status_code == 200:
             with open(csv_path, 'wb') as file:
-                for chunk in response.iter_content(chunk_size=1024):
+                for chunk in response.iter_content(chunk_size=8192):
                     file.write(chunk)
             print("✅ Download complete.")
         else:
@@ -32,6 +37,8 @@ if not os.path.exists(csv_path):
 
     except requests.RequestException as e:
         print(f"❌ Error downloading file: {e}")
+        if os.path.exists(csv_path):
+            os.remove(csv_path)  # Remove partial download
         exit(1)
 
 # ✅ Read the CSV
