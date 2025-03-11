@@ -1,113 +1,79 @@
-import dash
-from dash import dcc, html, Input, Output
-import plotly.express as px
-import pandas as pd
-
-# -----------------------------
-# Load and Prepare Data
-# -----------------------------
 import os
 import pandas as pd
 import requests
+import dash
+from dash import dcc, html, Input, Output
+import plotly.express as px
 
-# OneDrive Direct Download Link (Replace with your actual converted link)
-onedrive_url = "https://api.onedrive.com/v1.0/shares/u!{s!Ak-wkUq8gHtXiq8w0OFI-uBrXa9umQ?e=JPo3V1}/root/content"
+# 🔹 Use the **correct OneDrive direct download link**
+onedrive_url = "https://onedrive.live.com/download?cid=YOUR_CID&resid=YOUR_RESID&authkey=YOUR_AUTHKEY"
 
-# Define the local file path
+# 🔹 Define the local file path
 csv_path = os.path.join(os.path.dirname(__file__), 'us-weather-events-1980-2024.csv')
 
-# Download the file if it does not exist
+# 🔹 Download the file if it does not exist
 if not os.path.exists(csv_path):
     print("Downloading CSV file from OneDrive...")
     response = requests.get(onedrive_url, stream=True)
+    
+    # If request fails, print error and exit
+    if response.status_code != 200:
+        print(f"Failed to download CSV. Status code: {response.status_code}")
+        exit(1)
+
     with open(csv_path, 'wb') as file:
         for chunk in response.iter_content(chunk_size=1024):
             file.write(chunk)
     print("Download complete.")
 
-# Read the CSV with low_memory=False to avoid DtypeWarning
-df_raw = pd.read_csv(data_path, low_memory=False)
+# ✅ Fix: Use `csv_path` instead of `data_path`
+df_raw = pd.read_csv(csv_path, low_memory=False)
 
-# Filter for tornado events.
-# Adjust the filtering if your EVENT_TYPE values differ.
+# 🔹 Filter for tornado events.
 df_tornado = df_raw[df_raw['EVENT_TYPE'].str.contains("Tornado", case=False, na=False)].copy()
 
-# Convert the "BEGIN_DATE_TIME" column to datetime.
-# If you know the exact format (for example, '%m/%d/%Y %H:%M:%S'), you can specify it here.
-df_tornado['BEGIN_DATE_TIME'] = pd.to_datetime(
-    df_tornado['BEGIN_DATE_TIME'],
-    errors='coerce'
-)
+# 🔹 Convert the "BEGIN_DATE_TIME" column to datetime.
+df_tornado['BEGIN_DATE_TIME'] = pd.to_datetime(df_tornado['BEGIN_DATE_TIME'], errors='coerce')
 
-# Drop rows with invalid dates and extract the year.
+# 🔹 Drop rows with invalid dates and extract the year.
 df_tornado = df_tornado.dropna(subset=['BEGIN_DATE_TIME'])
 df_tornado['year'] = df_tornado['BEGIN_DATE_TIME'].dt.year
 
-# Group by state and year to count the number of tornado events.
+# 🔹 Group by state and year to count tornadoes.
 df_grouped = df_tornado.groupby(['STATE', 'year']).size().reset_index(name='tornado_count')
 
-# --- Debug: Print unique years and states in the grouped data ---
-unique_years = sorted(df_grouped['year'].unique())
-print("Years in the data:", unique_years)
-
-# Standardize state names to title case
+# 🔹 Standardize state names to title case
 df_grouped['STATE'] = df_grouped['STATE'].str.title()
 
+# 🔹 Function to get state abbreviations
+state_abbrev_map = {
+    'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
+    'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
+    'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
+    'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
+    'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+    'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
+    'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
+    'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
+    'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
+    'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+    'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
+    'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
+    'Wisconsin': 'WI', 'Wyoming': 'WY'
+}
 
-# Function to get state abbreviations
 def get_state_abbrev(state_name):
-    state_abbrev_map = {
-        'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
-        'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
-        'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
-        'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
-        'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
-        'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
-        'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
-        'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
-        'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
-        'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
-        'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
-        'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
-        'Wisconsin': 'WI', 'Wyoming': 'WY'
-    }
-    return state_abbrev_map.get(state_name, None)  # Return None if the state is not found
+    return state_abbrev_map.get(state_name, None)
 
-# Now apply the function correctly
+# 🔹 Apply the function correctly
 df_grouped['state_abbrev'] = df_grouped['STATE'].apply(get_state_abbrev)
-
-# Drop any rows where a valid state abbreviation could not be determined
 df_grouped = df_grouped.dropna(subset=['state_abbrev'])
 
-def get_state_abbrev(state_val):
-    """Return the two-letter abbreviation for a given state value.
-       If the value is already two letters, assume it is valid.
-       Otherwise, convert to title case and look up in state_abbrev_map.
-       Returns None if no valid abbreviation can be determined."""
-    s = str(state_val).strip()
-    if len(s) == 2:
-        return s.upper()
-    # Convert to title case (e.g., "ALABAMA" -> "Alabama")
-    s_title = s.title()
-    return state_abbrev_map.get(s_title, None)
+# 🔹 Create an inverse mapping (abbreviation -> full state name)
+abbrev_state = {abbr: state for state, abbr in state_abbrev_map.items()}
 
-# Apply the helper function to create a new column for state abbreviations.
-df_grouped['state_abbrev'] = df_grouped['STATE'].apply(get_state_abbrev)
-
-# Drop any rows where a valid state abbreviation could not be determined.
-df_grouped = df_grouped.dropna(subset=['state_abbrev'])
-
-# Create an inverse mapping (abbreviation -> full state name) for use in labels.
-abbrev_state = {}
-for s in df_grouped['STATE'].unique():
-    abbr = get_state_abbrev(s)
-    if abbr is not None:
-        # Use the title-cased full name for clarity.
-        abbrev_state[abbr] = s.title()
-
-# Determine the list of available years for the dropdown.
+# 🔹 Determine available years for dropdown
 available_years = sorted(df_grouped['year'].unique())
-print("Available years for dropdown:", available_years)
 
 # -----------------------------
 # Dash App Setup
@@ -118,7 +84,7 @@ app.title = "US Tornado Dashboard"
 app.layout = html.Div([
     html.H1("US Tornado Dashboard", style={'textAlign': 'center'}),
     
-    # Year selection dropdown
+    # 🔹 Year selection dropdown
     html.Div([
         html.Label("Select Year:"),
         dcc.Dropdown(
@@ -130,12 +96,12 @@ app.layout = html.Div([
         )
     ], style={'textAlign': 'center', 'padding': '10px'}),
     
-    # Choropleth Map
+    # 🔹 Choropleth Map
     dcc.Graph(id='choropleth-map'),
     
     html.Hr(),
     
-    # Line chart for tornado trend of clicked state.
+    # 🔹 Line chart for tornado trends
     html.Div([
         html.H2(id='line-chart-title', style={'textAlign': 'center'}),
         dcc.Graph(id='line-chart')
@@ -145,7 +111,7 @@ app.layout = html.Div([
 # -----------------------------
 # Callbacks
 # -----------------------------
-# 1. Update the choropleth map based on the selected year.
+# 🔹 Update the choropleth map
 @app.callback(
     Output('choropleth-map', 'figure'),
     Input('year-dropdown', 'value')
@@ -153,10 +119,9 @@ app.layout = html.Div([
 def update_choropleth(selected_year):
     if selected_year is None:
         return {}
-    # Filter the data for the selected year.
+
     dff = df_grouped[df_grouped['year'] == selected_year]
     
-    # Create the choropleth map.
     fig = px.choropleth(
         dff,
         locations='state_abbrev',
@@ -167,41 +132,30 @@ def update_choropleth(selected_year):
         labels={'tornado_count': 'Tornado Count'},
         hover_data={'STATE': True, 'tornado_count': True, 'year': False}
     )
-    fig.update_layout(
-        title_text=f"Tornado Count by State in {selected_year}",
-        margin={"r": 0, "t": 30, "l": 0, "b": 0}
-    )
+    fig.update_layout(title_text=f"Tornado Count by State in {selected_year}")
     return fig
 
-# 2. Update the line chart when a state is clicked on the map.
+# 🔹 Update the line chart when a state is clicked
 @app.callback(
     [Output('line-chart', 'figure'),
      Output('line-chart-title', 'children')],
     Input('choropleth-map', 'clickData')
 )
 def update_line_chart(clickData):
-    # If no state is clicked, display a message.
     if clickData is None:
-        return {}, "Click on a state in the map to see the tornado trend over the years."
-    
-    # Extract the state abbreviation from the clickData.
+        return {}, "Click a state to see its tornado trend."
+
     state_abbrev_clicked = clickData['points'][0]['location']
-    # Get the full state name (or use the abbreviation if that's all we have).
     state_full = abbrev_state.get(state_abbrev_clicked, state_abbrev_clicked)
     
-    # Filter data for the selected state across all years.
     dff = df_grouped[df_grouped['state_abbrev'] == state_abbrev_clicked]
     
     if dff.empty:
         return {}, f"No tornado data found for {state_full}."
     
-    # Create the line chart.
-    fig = px.line(dff, x='year', y='tornado_count',
-                  markers=True,
-                  title=f"Tornado Trend in {state_full}")
-    fig.update_layout(xaxis=dict(dtick=1))
+    fig = px.line(dff, x='year', y='tornado_count', markers=True)
+    title = f"Tornado Counts in {state_full} Over the Years"
     
-    title = f"Tornado Counts Over the Years for {state_full}"
     return fig, title
 
 # -----------------------------
